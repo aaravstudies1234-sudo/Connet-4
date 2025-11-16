@@ -1,5 +1,9 @@
 #include <iostream>
+#include <vector>
 #include <ctime>
+struct Move {
+    int row, col;
+};
 void drawboard(char board[6][7]){
     std::cout << std::endl;
     for(int i = 0; i < 6; i++){
@@ -12,29 +16,61 @@ void drawboard(char board[6][7]){
     std::cout << "-----------------------------" << std::endl;
     std::cout << "  1   2   3   4   5   6   7  " << std::endl;
 }
-void playermove(char board[6][7], char player){
-    int col;
-    while(true){
-        std::cout << "Enter the column you want to drop the mark (1-7): ";
-        std::cin >> col;
-        col--;
-        if(col < 0 || col > 6){
-            std::cout << "Invalid Mark! TRy again" << std::endl;
+bool undoLastTwoMoves(char board[6][7], std::vector<Move> &history) {
+    if (history.size() < 2) {
+        std::cout << "Not enough moves to undo!\n";
+        return false;
+    }
+    Move compMove = history.back();
+    history.pop_back();
+    board[compMove.row][compMove.col] = ' ';
+    Move playerMove = history.back();
+    history.pop_back();
+    board[playerMove.row][playerMove.col] = ' ';
+    std::cout << "Undo complete!\n";
+    return true;
+}
+bool playerMoveInput(char board[6][7], char player, std::vector<Move> &history){
+    std::string input;
+    while (true) {
+        std::cout << "Enter column (1-7) or U to undo: ";
+        std::cin >> input;
+        if (input == "U" || input == "u") {
+            return false;
+        }
+        if (input.size() != 1 || input[0] < '1' || input[0] > '7') {
+            std::cout << "Invalid input! Try again.\n";
             continue;
         }
-        for(int i = 5; i >= 0; i--){
-            if(board[i][col] == ' '){
+        int col = input[0] - '1';
+        for (int i = 5; i >= 0; i--) {
+            if (board[i][col] == ' ') {
                 board[i][col] = player;
+                history.push_back({i, col});
+                return true;
+            }
+        }
+
+        std::cout << "Column full! Try again.\n";
+    }
+}
+void computermove_easy(char board[6][7], char computer, std::vector<Move> &history){
+    srand(time(NULL));
+    while (true) {
+        int col = rand() % 7;
+        for (int r = 5; r >= 0; r--) {
+            if (board[r][col] == ' ') {
+                board[r][col] = computer;
+                history.push_back({r, col});
                 return;
             }
         }
-        std::cout << "Column full try again" << std::endl;
     }
 }
-void computermove(char board[6][7], char computer, char player) {
+void computermove(char board[6][7], char computer, char player, std::vector<Move> &history) {
     srand(time(NULL));
     for (int i = 0; i < 6; i++){
-        for (int j = 0; j < 4; j++){ 
+        for (int j = 0; j < 4; j++){
             int playerCount = 0, emptyCol = -1;
             for (int k = 0; k < 4; k++){
                 if (board[i][j + k] == player) playerCount++;
@@ -50,6 +86,7 @@ void computermove(char board[6][7], char computer, char player) {
                 }
                 if (rowToPlace != -1){
                     board[rowToPlace][emptyCol] = computer;
+                    history.push_back({rowToPlace, emptyCol});
                     return;
                 }
             }
@@ -63,10 +100,10 @@ void computermove(char board[6][7], char computer, char player) {
                 if (board[i + k][j] == player) playerCount++;
                 else if (board[i + k][j] == ' ') emptyRow = i + k;
             }
-
             if (playerCount == 3 && emptyRow != -1) {
                 if (emptyRow == 5 || board[emptyRow + 1][j] != ' ') {
                     board[emptyRow][j] = computer;
+                    history.push_back({emptyRow, j});
                     return;
                 }
             }
@@ -74,18 +111,36 @@ void computermove(char board[6][7], char computer, char player) {
     }
     while (true) {
         int col = rand() % 7;
-        int rowToPlace = -1;
         for (int r = 5; r >= 0; r--) {
             if (board[r][col] == ' ') {
-                rowToPlace = r;
-                break;
+                board[r][col] = computer;
+                history.push_back({r, col});
+                return;
             }
         }
-        if (rowToPlace != -1) {
-            board[rowToPlace][col] = computer;
-            return;
+    }
+}
+void computermove_hard(char board[6][7], char computer, char player, std::vector<Move> &history){
+    srand(time(NULL));
+    for (int i = 0; i < 6; i++){
+        for (int j = 0; j < 4; j++){
+            int compCount = 0, emptyCol = -1;
+            for (int k = 0; k < 4; k++){
+                if (board[i][j+k] == computer) compCount++;
+                else if (board[i][j+k] == ' ') emptyCol = j+k;
+            }
+            if (compCount == 3 && emptyCol != -1){
+                for (int r = 5; r >= 0; r--){
+                    if (board[r][emptyCol] == ' '){
+                        board[r][emptyCol] = computer;
+                        history.push_back({r, emptyCol});
+                        return;
+                    }
+                }
+            }
         }
     }
+    computermove(board, computer, player, history);
 }
 bool checkwinner(char board[6][7], char player){
     for(int i = 0; i < 6; i++){
@@ -135,31 +190,37 @@ int main(){
             board[i][j] = ' ';
         }
     }
+    std::vector<Move> history;
+    int difficulty;
+    std::cout << "Select difficulty: 1 = Easy | 2 = Normal | 3 = Hard: ";
+    std::cin >> difficulty;
     char player = 'X';
     char computer = 'O';
-    bool running = true;
     drawboard(board);
-    while(running){
-       playermove(board, player);
-       drawboard(board);
-        if (checkwinner(board, player)){
-            std::cout << "You win!" << std::endl;
-            break; 
+    while (true) {
+        if (!playerMoveInput(board, player, history)) {
+            if (undoLastTwoMoves(board, history))
+                drawboard(board);
+            continue;
         }
-        else if(checkwinner(board, computer)){
-            std::cout << "Computer wins!" << std::endl;
-        }
-        else if (checktie(board)) break;
-        computermove(board, computer, player);
         drawboard(board);
-        if (checkwinner(board, player)){
-            std::cout << "You win!" << std::endl;
+        if (checkwinner(board, player)) {
+            std::cout << "You win!\n";
             break;
         }
-        else if(checkwinner(board, computer)){
-            std::cout << "Computer wins!" << std::endl;
+        if (checktie(board)) break;
+        if (difficulty == 1) 
+            computermove_easy(board, computer, history);
+        else if (difficulty == 2) 
+            computermove(board, computer, player, history);
+        else 
+            computermove_hard(board, computer, player, history);
+        drawboard(board);
+        if (checkwinner(board, computer)) {
+            std::cout << "Computer wins!\n";
+            break;
         }
-        else if (checktie(board)) break; 
+        if (checktie(board)) break;
     }
     return 0;
 }
