@@ -50,7 +50,6 @@ bool playerMoveInput(char board[6][7], char player, std::vector<Move> &history){
                 return true;
             }
         }
-
         std::cout << "Column full! Try again.\n";
     }
 }
@@ -94,16 +93,60 @@ void computermove(char board[6][7], char computer, char player, std::vector<Move
     }
     for (int j = 0; j < 7; j++) {
         for (int i = 0; i < 3; i++){
-            int playerCount = 0, emptyRow = -1;
-
+            int playerCount = 0;
+            int emptyRow = -1;
             for (int k = 0; k < 4; k++){
-                if (board[i + k][j] == player) playerCount++;
-                else if (board[i + k][j] == ' ') emptyRow = i + k;
+                if (board[i + k][j] == player)
+                    playerCount++;
+                else if (board[i + k][j] == ' ')
+                    emptyRow = i + k;
             }
             if (playerCount == 3 && emptyRow != -1) {
                 if (emptyRow == 5 || board[emptyRow + 1][j] != ' ') {
                     board[emptyRow][j] = computer;
                     history.push_back({emptyRow, j});
+                    return;
+                }
+            }
+        }
+    }
+    for (int i = 3; i < 6; i++) {
+        for (int j = 0; j < 4; j++) {
+            int playerCount = 0;
+            int emptyR = -1, emptyC = -1;
+            for (int k = 0; k < 4; k++) {
+                if (board[i - k][j + k] == player)
+                    playerCount++;
+                else if (board[i - k][j + k] == ' ') {
+                    emptyR = i - k;
+                    emptyC = j + k;
+                }
+            }
+            if (playerCount == 3 && emptyR != -1) {
+                if (emptyR == 5 || board[emptyR + 1][emptyC] != ' ') {
+                    board[emptyR][emptyC] = computer;
+                    history.push_back({emptyR, emptyC});
+                    return;
+                }
+            }
+        }
+    }
+    for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 4; j++) {
+            int playerCount = 0;
+            int emptyR = -1, emptyC = -1;
+            for (int k = 0; k < 4; k++) {
+                if (board[i + k][j + k] == player)
+                    playerCount++;
+                else if (board[i + k][j + k] == ' ') {
+                    emptyR = i + k;
+                    emptyC = j + k;
+                }
+            }
+            if (playerCount == 3 && emptyR != -1) {
+                if (emptyR == 5 || board[emptyR + 1][emptyC] != ' ') {
+                    board[emptyR][emptyC] = computer;
+                    history.push_back({emptyR, emptyC});
                     return;
                 }
             }
@@ -209,12 +252,13 @@ int main(){
             break;
         }
         if (checktie(board)) break;
-        if (difficulty == 1) 
+        if (difficulty == 1)
             computermove_easy(board, computer, history);
-        else if (difficulty == 2) 
+        else if (difficulty == 2)
             computermove(board, computer, player, history);
-        else 
+        else
             computermove_hard(board, computer, player, history);
+
         drawboard(board);
         if (checkwinner(board, computer)) {
             std::cout << "Computer wins!\n";
